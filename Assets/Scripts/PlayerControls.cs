@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class PlayerMovement : MonoBehaviour
+public class PlayerControls : MonoBehaviour
 {
     [Header("References")]
     [SerializeField] private Transform groundChecker;
@@ -8,12 +8,12 @@ public class PlayerMovement : MonoBehaviour
     [Header("LayerMask")] 
     [SerializeField] private LayerMask groundMask;
     
-    [Header("Values")]
+    [Header("Values"), Min(0)]
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float rotateSpeed = 100f;
     [SerializeField] private float gravityMultiplier = 1f;
 
-    private const float gravity = 9.81f;
+    private const float Gravity = 9.81f;
     private float velocity;
     private bool isGrounded;
 
@@ -32,10 +32,10 @@ public class PlayerMovement : MonoBehaviour
 
         if (isGrounded && velocity < 0f)
         {
-            velocity = -gravity;
+            velocity = -Gravity;
         }
         
-        velocity -= gravity * gravityMultiplier * Time.deltaTime;
+        velocity -= Gravity * gravityMultiplier * Time.deltaTime;
         
         var moveForward = Input.GetAxis("Vertical") * moveSpeed * Time.deltaTime;
         var rotateAround = Input.GetAxis("Horizontal") * rotateSpeed * Time.deltaTime;
@@ -50,7 +50,7 @@ public class PlayerMovement : MonoBehaviour
     {
         if (hit.collider.CompareTag("Enemy"))
         {
-            enemy.StartChasing();
+            enemy.enemyState = EnemyState.Hostile;
         }
     }
 }

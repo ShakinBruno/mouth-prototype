@@ -1,5 +1,7 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
+using Random = UnityEngine.Random;
 
 public class EnemyAI : MonoBehaviour
 {
@@ -8,30 +10,28 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private PatrolPath patrolPath;
 
     [Header("Enemy's State")] 
-    [SerializeField] private EnemyState enemyState;
+    public EnemyState enemyState;
 
     [Header("Raycast Settings")] 
     [SerializeField] private Transform raycastPivot;
     
-    [Header("Values")]
+    [Header("Values"), Min(0)]
     [SerializeField] private float hostileDetectionRange = 15f;
     [SerializeField] private float suspicionDetectionRange = 25f;
+    [SerializeField] private float wanderRange = 7.5f;
     [SerializeField] private float waypointWaitTime = 3f;
     [SerializeField] private float suspicionTime = 3f;
     [SerializeField] private float normalSpeed = 3.5f;
     [SerializeField] private float chasingSpeed = 5f;
     [SerializeField] private float turnSpeed = 5f;
-
-    private enum EnemyState
-    {
-        Friendly,
-        Suspicion,
-        Hostile
-    }
+    [SerializeField, Range(1, 5)] private int wanderCheckpointsAmount = 1;
+    [SerializeField, Range(1, 2)] private float wanderCheckpointsStep = 1f;
 
     private float timeSinceLastSawPlayer = Mathf.Infinity;
     private float timeSinceArrivedAtWaypoint = Mathf.Infinity;
     private int currentWaypointIndex;
+    private int wanderWaypointIndex = 1;
+    private bool hasCoroutineFinished = true;
 
     private NavMeshAgent navMeshAgent;
     private Vector3 enemyNextPosition;
@@ -47,6 +47,11 @@ public class EnemyAI : MonoBehaviour
         enemyNextPosition = transform.position;
         currentWaypointIndex = Random.Range(0, patrolPath.waypoints.Count);
         navMeshAgent.speed = normalSpeed;
+
+        if (wanderRange < navMeshAgent.stoppingDistance * 2f)
+        {
+            wanderRange = navMeshAgent.stoppingDistance * 2f;
+        }
     }
 
     private void Update()
@@ -81,10 +86,13 @@ public class EnemyAI : MonoBehaviour
     private void FriendlyState()
     {
         navMeshAgent.speed = normalSpeed;
+        
+        ResetWanderStats();
         PatrolBehaviour();
+        
         if (IsTargetAccessibleCheck(hostileDetectionRange) && IsTargetVisibleCheck())
         {
-            StartChasing();
+            enemyState = EnemyState.Hostile;
         }
     }
 
@@ -92,24 +100,28 @@ public class EnemyAI : MonoBehaviour
     {
         if (IsTargetAccessibleCheck(suspicionDetectionRange) && IsTargetVisibleCheck())
         {
-            StartChasing();
+            enemyState = EnemyState.Hostile;
         }
-        
-        if (timeSinceLastSawPlayer >= suspicionTime)
+
+        if (timeSinceLastSawPlayer >= suspicionTime && hasCoroutineFinished)
         {
-            enemyState = EnemyState.Friendly;
+            StartCoroutine(WanderBehaviour());
         }
     }
 
     private void HostileState()
     {
         navMeshAgent.speed = chasingSpeed;
-
+        timeSinceLastSawPlayer = 0f;
+        
+        ResetWanderStats();
         FaceTarget();
+        
+        navMeshAgent.SetDestination(target.transform.position);
         
         if (IsTargetVisibleCheck())
         {
-            StartChasing();
+            enemyState = EnemyState.Hostile;
         }
         else
         {
@@ -117,23 +129,24 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
+    private void ResetWanderStats()
+    {
+        StopAllCoroutines();
+        hasCoroutineFinished = true;
+        wanderWaypointIndex = 1;
+    }
+
     private void FaceTarget()
     {
         var direction = (target.transform.position - raycastPivot.position).normalized;
         var lookRotation = Quaternion.LookRotation(new Vector3(direction.x, 0f, direction.z));
+        
         transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, turnSpeed * Time.deltaTime);
     }
 
-    public void StartChasing()
-    {
-        enemyState = EnemyState.Hostile;
-        timeSinceLastSawPlayer = 0f;
-        navMeshAgent.SetDestination(target.transform.position);
-    }
-    
     private void PatrolBehaviour()
     {
-        var distanceToWaypoint = Vector3.Distance(transform.position, GetCurrentWaypoint());
+        var distanceToWaypoint = Vector3.Distance(transform.position, GetCurrentWaypoint(currentWaypointIndex));
         
         if (distanceToWaypoint <= navMeshAgent.stoppingDistance)
         {
@@ -141,7 +154,7 @@ public class EnemyAI : MonoBehaviour
             currentWaypointIndex = patrolPath.GetNextIndex(currentWaypointIndex);
         }
         
-        enemyNextPosition = GetCurrentWaypoint();
+        enemyNextPosition = GetCurrentWaypoint(currentWaypointIndex);
         
         if (timeSinceArrivedAtWaypoint >= waypointWaitTime)
         {
@@ -149,9 +162,54 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    private Vector3 GetCurrentWaypoint()
+    private IEnumerator WanderBehaviour()
     {
-        return patrolPath.GetCurrentWaypoint(currentWaypointIndex);
+        hasCoroutineFinished = false;
+        
+        navMeshAgent.SetDestination(RandomWanderPos());
+
+        while(true)
+        {
+            if (navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
+            {
+                wanderWaypointIndex++;
+                
+                yield return new WaitForSeconds(waypointWaitTime);
+
+                if (wanderWaypointIndex > wanderCheckpointsAmount)
+                {
+                    enemyState = EnemyState.Friendly;
+                    break;
+                }
+                
+                navMeshAgent.SetDestination(RandomWanderPos());
+            }
+            else
+            {
+                yield return null;
+            }
+        }
+    }
+    
+    private Vector3 RandomWanderPos()
+    {
+        Vector3 randomDirection;
+        do
+        {
+            randomDirection = Random.insideUnitSphere * wanderRange;
+            randomDirection.y = Mathf.Clamp01(randomDirection.y);
+            randomDirection += transform.position;
+        } 
+        while (Vector3.Distance(transform.position, randomDirection) < navMeshAgent.stoppingDistance * wanderCheckpointsStep);
+
+        NavMesh.SamplePosition(randomDirection, out var navHit, wanderRange, NavMesh.AllAreas);
+
+        return navHit.position;
+    }
+
+    private Vector3 GetCurrentWaypoint(int index)
+    {
+        return patrolPath.GetCurrentWaypoint(index);
     }
 
     private bool IsTargetAccessibleCheck(float range)
@@ -173,11 +231,7 @@ public class EnemyAI : MonoBehaviour
         var direction = (target.transform.position - raycastPivot.position).normalized;
         if (Vector3.Dot(forward, direction) >= 0f)
         {
-            if (Physics.Raycast(transform.position, direction, out var hit) && hit.collider.CompareTag("Player"))
-            {
-                return true;
-            }
-            return false;
+            return Physics.Raycast(transform.position, direction, out var hit) && hit.collider.CompareTag("Player");
         }
         return false;
     }
@@ -192,6 +246,8 @@ public class EnemyAI : MonoBehaviour
         Gizmos.DrawWireSphere(enemy, hostileDetectionRange);
         Gizmos.color = Color.blue;
         Gizmos.DrawWireSphere(enemy, suspicionDetectionRange);
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireSphere(enemy, wanderRange);
         Gizmos.color = Color.yellow;
         Gizmos.DrawRay(enemyPivot, direction);
     }

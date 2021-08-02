@@ -294,10 +294,13 @@ MonoBehaviour:
   patrolPath: {fileID: 0}
   enemyState: 0
   raycastPivot: {fileID: 3680323256346384538}
-  hostileDetectionRange: 15
-  suspicionDetectionRange: 20
+  hostileDetectionRange: 12.5
+  suspicionDetectionRange: 15
+  wanderRange: 7.5
   waypointWaitTime: 3
   suspicionTime: 5
-  normalSpeed: 3.5
-  chasingSpeed: 5
+  normalSpeed: 3
+  chasingSpeed: 4.5
   turnSpeed: 7.5
+  wanderCheckpointsAmount: 3
+  wanderCheckpointsStep: 1.5

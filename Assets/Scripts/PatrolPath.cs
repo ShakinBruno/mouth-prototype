@@ -1,13 +1,12 @@
 using System.Collections.Generic;
 using UnityEngine;
-using Random = UnityEngine.Random;
 
 public class PatrolPath : MonoBehaviour
 {
     [Header("Enemy's Route")]
     public List<Transform> waypoints = new List<Transform>();
 
-    [Header("Values")] 
+    [Header("Values"), Min(0)] 
     [SerializeField] private float waypointGizmoRadius = 0.3f;
 
     public int GetNextIndex(int previousWaypointIndex)

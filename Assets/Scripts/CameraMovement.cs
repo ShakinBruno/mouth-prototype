@@ -5,8 +5,8 @@ public class CameraMovement : MonoBehaviour
     [Header("Values")]
     [SerializeField] private float mouseSensitivity = 100f;
 
-    private float xRotation = 0f;
-    private float yRotation = 0f;
+    private float xRotation;
+    private float yRotation;
 
     private void Start()
     {
