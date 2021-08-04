@@ -108,7 +108,7 @@ GameObject:
   - component: {fileID: 871567524031814905}
   m_Layer: 0
   m_Name: Ground Checker
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -139,7 +139,7 @@ GameObject:
   - component: {fileID: 1099864691610186047}
   - component: {fileID: 313945206096709605}
   - component: {fileID: 2092762531}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Player
   m_TagString: Player
   m_Icon: {fileID: 0}
@@ -216,8 +216,10 @@ MonoBehaviour:
   groundMask:
     serializedVersion: 2
     m_Bits: 8
-  moveSpeed: 3
+  walkSpeed: 3
+  runSpeed: 5
   rotateSpeed: 200
+  fromWalkToRunMultiplier: 5
   gravityMultiplier: 2
 --- !u!1001 &5933898020880672673
 PrefabInstance:
@@ -269,6 +271,10 @@ PrefabInstance:
     - target: {fileID: 379960166579015031, guid: 36078ab0369161e49a29d349ae3e0739, type: 3}
       propertyPath: m_Layer
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 36078ab0369161e49a29d349ae3e0739, type: 3}
+      propertyPath: m_TagString
+      value: Player
       objectReference: {fileID: 0}
     - target: {fileID: 5329976568755203363, guid: 36078ab0369161e49a29d349ae3e0739, type: 3}
       propertyPath: m_Layer

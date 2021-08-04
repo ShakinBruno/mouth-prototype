@@ -11,7 +11,7 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private PatrolPath patrolPath;
 
     [Header("Enemy's State")] 
-    public EnemyState enemyState;
+    private EnemyState enemyState;
 
     [Header("Raycast Settings")] 
     [SerializeField] private Transform raycastPivot;
@@ -28,6 +28,7 @@ public class EnemyAI : MonoBehaviour
     [SerializeField, Range(1, 5)] private int wanderCheckpointsAmount = 1;
     [SerializeField, Range(1, 2)] private float wanderCheckpointsStep = 1f;
 
+    private static readonly int Speed = Animator.StringToHash("Speed");
     private float timeSinceLastSawPlayer = Mathf.Infinity;
     private float timeSinceArrivedAtWaypoint = Mathf.Infinity;
     private int currentWaypointIndex;
@@ -35,16 +36,18 @@ public class EnemyAI : MonoBehaviour
     private bool hasCoroutineFinished = true;
 
     private NavMeshAgent navMeshAgent;
+    private Animator animator;
     private Vector3 enemyNextPosition;
 
     private void Awake()
     {
         navMeshAgent = GetComponent<NavMeshAgent>();
+        animator = GetComponent<Animator>();
     }
 
     private void Start()
     {
-        enemyState = EnemyState.Friendly;
+        enemyState = EnemyState.Patrol;
         enemyNextPosition = transform.position;
         currentWaypointIndex = Random.Range(0, patrolPath.waypoints.Count);
         navMeshAgent.speed = normalSpeed;
@@ -58,6 +61,8 @@ public class EnemyAI : MonoBehaviour
     private void Update()
     {
         EnemyStateBehaviour();
+        
+        UpdateMovementAnimations();
 
         UpdateTimers();
     }
@@ -70,7 +75,7 @@ public class EnemyAI : MonoBehaviour
 
     private void EnemyStateBehaviour()
     {
-        if (enemyState == EnemyState.Friendly)
+        if (enemyState == EnemyState.Patrol)
         {
             FriendlyState();
         }
@@ -78,7 +83,7 @@ public class EnemyAI : MonoBehaviour
         {
             SuspicionState();
         }
-        else if (enemyState == EnemyState.Hostile)
+        else if (enemyState == EnemyState.Hostility)
         {
             HostileState();
         }
@@ -93,7 +98,7 @@ public class EnemyAI : MonoBehaviour
         
         if (IsTargetAccessibleCheck(hostileDetectionRange) && IsTargetVisibleCheck())
         {
-            enemyState = EnemyState.Hostile;
+            enemyState = EnemyState.Hostility;
         }
     }
 
@@ -101,7 +106,7 @@ public class EnemyAI : MonoBehaviour
     {
         if (IsTargetAccessibleCheck(suspicionDetectionRange) && IsTargetVisibleCheck())
         {
-            enemyState = EnemyState.Hostile;
+            enemyState = EnemyState.Hostility;
         }
 
         if (timeSinceLastSawPlayer >= suspicionTime && hasCoroutineFinished)
@@ -122,7 +127,7 @@ public class EnemyAI : MonoBehaviour
         
         if (IsTargetVisibleCheck())
         {
-            enemyState = EnemyState.Hostile;
+            enemyState = EnemyState.Hostility;
         }
         else
         {
@@ -179,7 +184,7 @@ public class EnemyAI : MonoBehaviour
 
                 if (wanderWaypointIndex > wanderCheckpointsAmount)
                 {
-                    enemyState = EnemyState.Friendly;
+                    enemyState = EnemyState.Patrol;
                     break;
                 }
                 
@@ -210,7 +215,7 @@ public class EnemyAI : MonoBehaviour
 
     private Vector3 GetCurrentWaypoint(int index)
     {
-        return patrolPath.GetCurrentWaypoint(index);
+        return patrolPath.GetRandomWaypoint(index);
     }
 
     private bool IsTargetAccessibleCheck(float range)
@@ -235,6 +240,13 @@ public class EnemyAI : MonoBehaviour
             return Physics.Raycast(transform.position, direction, out var hit) && hit.collider.CompareTag("Player");
         }
         return false;
+    }
+    
+    private void UpdateMovementAnimations()
+    {
+        var localVelocity = transform.InverseTransformDirection(navMeshAgent.velocity);
+        var speed = localVelocity.z;
+        animator.SetFloat(Speed, speed);
     }
 
     private void OnDrawGizmosSelected()

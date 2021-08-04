@@ -20,7 +20,7 @@ public class PatrolPath : MonoBehaviour
         return randomIndex;
     }
 
-    public Vector3 GetCurrentWaypoint(int waypointIndex)
+    public Vector3 GetRandomWaypoint(int waypointIndex)
     {
         return waypoints[waypointIndex].position;
     }
