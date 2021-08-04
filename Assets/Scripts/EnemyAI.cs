@@ -6,255 +6,278 @@ using Random = UnityEngine.Random;
 [RequireComponent(typeof(NavMeshAgent))]
 public class EnemyAI : MonoBehaviour
 {
-    [Header("References")] 
-    [SerializeField] private GameObject target;
+    [Header("References")]
+    [SerializeField] private CharacterController target;
     [SerializeField] private PatrolPath patrolPath;
-
-    [Header("Enemy's State")] 
-    private EnemyState enemyState;
-
-    [Header("Raycast Settings")] 
-    [SerializeField] private Transform raycastPivot;
     
-    [Header("Values"), Min(0)]
+    [Header("Raycast Settings")] 
+    [SerializeField] private Transform playerRaycastPivot;
+    [SerializeField] private Transform enemyRaycastPivot;
+
+    [Header("Layer Mask")] 
+    [SerializeField] private LayerMask playerMask;
+    
+    [Header("Values"), Min(0)] 
     [SerializeField] private float hostileDetectionRange = 15f;
     [SerializeField] private float suspicionDetectionRange = 25f;
     [SerializeField] private float wanderRange = 7.5f;
     [SerializeField] private float waypointWaitTime = 3f;
-    [SerializeField] private float suspicionTime = 3f;
     [SerializeField] private float normalSpeed = 3.5f;
     [SerializeField] private float chasingSpeed = 5f;
     [SerializeField] private float turnSpeed = 5f;
     [SerializeField, Range(1, 5)] private int wanderCheckpointsAmount = 1;
-    [SerializeField, Range(1, 2)] private float wanderCheckpointsStep = 1f;
-
+    [SerializeField, Range(1, 2)] private float wanderCheckpointStep = 1f;
+    
     private static readonly int Speed = Animator.StringToHash("Speed");
-    private float timeSinceLastSawPlayer = Mathf.Infinity;
-    private float timeSinceArrivedAtWaypoint = Mathf.Infinity;
-    private int currentWaypointIndex;
-    private int wanderWaypointIndex = 1;
-    private bool hasCoroutineFinished = true;
+    private bool isInHostileRange;
+    private bool isInSuspicionRange;
+    private bool isVisible;
 
     private NavMeshAgent navMeshAgent;
     private Animator animator;
-    private Vector3 enemyNextPosition;
+    private Coroutine activeCoroutine;
+    private EnemyState enemyState;
+
+    private EnemyState EnemyState
+    {
+        get => enemyState;
+        set
+        {
+            onStateChange?.Invoke(enemyState, value);
+            enemyState = value;
+        }
+    }
+
+    private delegate void StateChangeEvent(EnemyState previousState,EnemyState newState);
+    private StateChangeEvent onStateChange;
 
     private void Awake()
     {
-        navMeshAgent = GetComponent<NavMeshAgent>();
         animator = GetComponent<Animator>();
+        navMeshAgent = GetComponent<NavMeshAgent>();
+
+        onStateChange += HandleStateChange;
+        enemyState = EnemyState.Default;
+        
+        if (wanderRange < navMeshAgent.stoppingDistance * wanderCheckpointStep)
+        {
+            wanderRange = navMeshAgent.stoppingDistance * wanderCheckpointStep;
+        }
     }
 
     private void Start()
     {
-        enemyState = EnemyState.Patrol;
-        enemyNextPosition = transform.position;
-        currentWaypointIndex = Random.Range(0, patrolPath.waypoints.Count);
+        EnemyState = EnemyState.Patrol;
         navMeshAgent.speed = normalSpeed;
-
-        if (wanderRange < navMeshAgent.stoppingDistance * 2f)
-        {
-            wanderRange = navMeshAgent.stoppingDistance * 2f;
-        }
     }
 
     private void Update()
     {
-        EnemyStateBehaviour();
-        
         UpdateMovementAnimations();
-
-        UpdateTimers();
     }
 
-    private void UpdateTimers()
+    private void FixedUpdate()
     {
-        timeSinceLastSawPlayer += Time.deltaTime;
-        timeSinceArrivedAtWaypoint += Time.deltaTime;
+        isInHostileRange = IsTargetAccessibleCheck(hostileDetectionRange, playerMask);
+        isInSuspicionRange = IsTargetAccessibleCheck(suspicionDetectionRange, playerMask);
+        isVisible = IsTargetVisibleCheck();
+
+        switch (EnemyState)
+        {
+            case EnemyState.Patrol:
+            {
+                if (isInHostileRange && isVisible)
+                {
+                    EnemyState = EnemyState.Hostility;
+                }
+
+                break;
+            }
+            case EnemyState.Suspicion:
+            {
+                if (isInSuspicionRange && isVisible)
+                {
+                    EnemyState = EnemyState.Hostility;
+                }
+
+                break;
+            }
+        }
     }
 
-    private void EnemyStateBehaviour()
+    private void HandleStateChange(EnemyState previousState, EnemyState newState)
     {
-        if (enemyState == EnemyState.Patrol)
+        if (previousState == newState) return;
+        
+        if (activeCoroutine != null)
         {
-            FriendlyState();
+            StopCoroutine(activeCoroutine);
         }
-        else if (enemyState == EnemyState.Suspicion)
+
+        switch (newState)
         {
-            SuspicionState();
-        }
-        else if (enemyState == EnemyState.Hostility)
-        {
-            HostileState();
+            case EnemyState.Patrol:
+                activeCoroutine = StartCoroutine(PatrolBehaviour());
+                break;
+            case EnemyState.Suspicion:
+                activeCoroutine = StartCoroutine(WanderBehaviour(wanderCheckpointsAmount));
+                break;
+            case EnemyState.Hostility:
+                activeCoroutine = StartCoroutine(HostileBehaviour());
+                break;
         }
     }
 
-    private void FriendlyState()
+    private IEnumerator PatrolBehaviour()
     {
+        var patrolWaypointIndex = Random.Range(0, patrolPath.waypoints.Count);
+        var nextDestination = GetPatrolWaypoint(patrolWaypointIndex);
+        
         navMeshAgent.speed = normalSpeed;
-        
-        ResetWanderStats();
-        PatrolBehaviour();
-        
-        if (IsTargetAccessibleCheck(hostileDetectionRange) && IsTargetVisibleCheck())
+        navMeshAgent.SetDestination(nextDestination);
+
+        while (enabled)
         {
-            enemyState = EnemyState.Hostility;
+            if (navMeshAgent.pathPending)
+            {
+                yield return null;
+            }
+            
+            if (navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
+            {
+                patrolWaypointIndex = patrolPath.GetNextIndex(patrolWaypointIndex);
+                nextDestination = GetPatrolWaypoint(patrolWaypointIndex);
+                
+                yield return new WaitForSeconds(waypointWaitTime);
+                
+                navMeshAgent.SetDestination(nextDestination);
+            }
+
+            yield return null;
         }
     }
 
-    private void SuspicionState()
+    private IEnumerator WanderBehaviour(int waypointsAmount)
     {
-        if (IsTargetAccessibleCheck(suspicionDetectionRange) && IsTargetVisibleCheck())
-        {
-            enemyState = EnemyState.Hostility;
-        }
-
-        if (timeSinceLastSawPlayer >= suspicionTime && hasCoroutineFinished)
-        {
-            StartCoroutine(WanderBehaviour());
-        }
-    }
-
-    private void HostileState()
-    {
-        navMeshAgent.speed = chasingSpeed;
-        timeSinceLastSawPlayer = 0f;
+        var wanderWaypointIndex = 1;
         
-        ResetWanderStats();
-        FaceTarget();
-        
-        navMeshAgent.SetDestination(target.transform.position);
-        
-        if (IsTargetVisibleCheck())
-        {
-            enemyState = EnemyState.Hostility;
-        }
-        else
-        {
-            enemyState = EnemyState.Suspicion;
-        }
-    }
-
-    private void ResetWanderStats()
-    {
-        StopAllCoroutines();
-        hasCoroutineFinished = true;
-        wanderWaypointIndex = 1;
-    }
-
-    private void FaceTarget()
-    {
-        var direction = (target.transform.position - raycastPivot.position).normalized;
-        var lookRotation = Quaternion.LookRotation(new Vector3(direction.x, 0f, direction.z));
-        
-        transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, turnSpeed * Time.deltaTime);
-    }
-
-    private void PatrolBehaviour()
-    {
-        var distanceToWaypoint = Vector3.Distance(transform.position, GetCurrentWaypoint(currentWaypointIndex));
-        
-        if (distanceToWaypoint <= navMeshAgent.stoppingDistance)
-        {
-            timeSinceArrivedAtWaypoint = 0f;
-            currentWaypointIndex = patrolPath.GetNextIndex(currentWaypointIndex);
-        }
-        
-        enemyNextPosition = GetCurrentWaypoint(currentWaypointIndex);
-        
-        if (timeSinceArrivedAtWaypoint >= waypointWaitTime)
-        {
-            navMeshAgent.SetDestination(enemyNextPosition);
-        }
-    }
-
-    private IEnumerator WanderBehaviour()
-    {
-        hasCoroutineFinished = false;
-        
+        navMeshAgent.speed = normalSpeed;
         navMeshAgent.SetDestination(RandomWanderPos());
 
-        while(true)
+        while(wanderWaypointIndex <= waypointsAmount)
         {
+            if (navMeshAgent.pathPending)
+            {
+                yield return null;
+            }
+            
             if (navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
             {
                 wanderWaypointIndex++;
                 
                 yield return new WaitForSeconds(waypointWaitTime);
 
-                if (wanderWaypointIndex > wanderCheckpointsAmount)
-                {
-                    enemyState = EnemyState.Patrol;
-                    break;
-                }
-                
                 navMeshAgent.SetDestination(RandomWanderPos());
             }
-            else
+
+            yield return null;
+        }
+        
+        EnemyState = EnemyState.Patrol;
+    }
+    
+    private IEnumerator HostileBehaviour()
+    {
+        navMeshAgent.speed = chasingSpeed;
+        navMeshAgent.SetDestination(target.transform.position);
+        
+        while (enabled)
+        {
+            if (navMeshAgent.pathPending)
             {
                 yield return null;
             }
+
+            if (isVisible)
+            {
+                navMeshAgent.SetDestination(target.transform.position);
+                FaceTarget();
+            }
+            else if (navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
+            {
+                yield return new WaitForSeconds(waypointWaitTime);
+                
+                EnemyState = EnemyState.Suspicion;
+            }
+            
+            yield return null;
         }
     }
-    
+
     private Vector3 RandomWanderPos()
     {
         Vector3 randomDirection;
+        
         do
         {
             randomDirection = Random.insideUnitSphere * wanderRange;
             randomDirection.y = Mathf.Clamp01(randomDirection.y);
             randomDirection += transform.position;
         } 
-        while (Vector3.Distance(transform.position, randomDirection) < navMeshAgent.stoppingDistance * wanderCheckpointsStep);
+        while (Vector3.Distance(transform.position, randomDirection) < navMeshAgent.stoppingDistance * wanderCheckpointStep);
 
         NavMesh.SamplePosition(randomDirection, out var navHit, wanderRange, NavMesh.AllAreas);
 
         return navHit.position;
     }
-
-    private Vector3 GetCurrentWaypoint(int index)
+    
+    private Vector3 GetPatrolWaypoint(int index)
     {
         return patrolPath.GetRandomWaypoint(index);
     }
-
-    private bool IsTargetAccessibleCheck(float range)
+    
+    private bool IsTargetAccessibleCheck(float range, int mask)
     {
-        var hitColliders = Physics.OverlapSphere(transform.position, range);
-        foreach (var hitCollider in hitColliders)
-        {
-            if (hitCollider.CompareTag("Player"))
-            {
-                return true;
-            }
-        }
-        return false;
+        var resultCollider = new Collider[1];
+        var hitCollider = Physics.OverlapSphereNonAlloc(transform.position, range, resultCollider, mask);
+
+        return hitCollider > 0;
     }
 
     private bool IsTargetVisibleCheck()
     {
         var forward = transform.TransformDirection(Vector3.forward);
-        var direction = (target.transform.position - raycastPivot.position).normalized;
+        var direction = (playerRaycastPivot.position - enemyRaycastPivot.position).normalized;
+        
         if (Vector3.Dot(forward, direction) >= 0f)
         {
-            return Physics.Raycast(transform.position, direction, out var hit) && hit.collider.CompareTag("Player");
+            return Physics.Raycast(enemyRaycastPivot.position, direction, out var hit) && hit.collider.CompareTag("Player");
         }
+        
         return false;
     }
     
+    private void FaceTarget()
+    {
+        var direction = (playerRaycastPivot.position - enemyRaycastPivot.position).normalized;
+        var lookRotation = Quaternion.LookRotation(new Vector3(direction.x, 0f, direction.z));
+        
+        transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, turnSpeed * Time.deltaTime);
+    }
+
     private void UpdateMovementAnimations()
     {
         var localVelocity = transform.InverseTransformDirection(navMeshAgent.velocity);
         var speed = localVelocity.z;
+        
         animator.SetFloat(Speed, speed);
     }
-
+    
     private void OnDrawGizmosSelected()
     {
         var enemy = transform.position;
-        var enemyPivot = raycastPivot.position;
-        var direction = target.transform.position - enemy;
-        
+        var enemyPivot = enemyRaycastPivot.position;
+
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(enemy, hostileDetectionRange);
         Gizmos.color = Color.blue;
@@ -262,6 +285,6 @@ public class EnemyAI : MonoBehaviour
         Gizmos.color = Color.green;
         Gizmos.DrawWireSphere(enemy, wanderRange);
         Gizmos.color = Color.yellow;
-        Gizmos.DrawRay(enemyPivot, direction);
+        Gizmos.DrawRay(enemyPivot, playerRaycastPivot.position - enemyPivot);
     }
 }

@@ -1,6 +1,6 @@
 ﻿public enum EnemyState
 {
-    Idle,
+    Default,
     Patrol,
     Suspicion,
     Hostility

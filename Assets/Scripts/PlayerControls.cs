@@ -14,15 +14,14 @@ public class PlayerControls : MonoBehaviour
     [SerializeField] private float rotateSpeed = 100f;
     [SerializeField] private float fromWalkToRunMultiplier = 5f;
     [SerializeField] private float gravityMultiplier = 1f;
-
-    private const float Gravity = -9.81f;
+    
+    private static readonly int Speed = Animator.StringToHash("Speed");
     private float velocity;
     private float moveSpeed;
     private bool isGrounded;
 
     private CharacterController controller;
     private Animator animator;
-    private static readonly int Speed = Animator.StringToHash("Speed");
 
     private void Awake()
     {
@@ -60,10 +59,10 @@ public class PlayerControls : MonoBehaviour
 
         if (isGrounded && velocity < 0f)
         {
-            velocity = Gravity;
+            velocity = Physics.gravity.y;
         }
 
-        velocity -= -Gravity * gravityMultiplier * Time.deltaTime;
+        velocity += Physics.gravity.y * gravityMultiplier * Time.deltaTime;
 
         var moveForward = Input.GetAxis("Vertical") * moveSpeed * Time.deltaTime;
         var rotateAround = Input.GetAxis("Horizontal") * rotateSpeed * Time.deltaTime;
