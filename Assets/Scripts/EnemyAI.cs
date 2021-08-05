@@ -32,13 +32,14 @@ public class EnemyAI : MonoBehaviour
     private bool isInHostileRange;
     private bool isInSuspicionRange;
     private bool isVisible;
+    public bool wasEnemyHit;
 
     private NavMeshAgent navMeshAgent;
     private Animator animator;
     private Coroutine activeCoroutine;
     private EnemyState enemyState;
 
-    private EnemyState EnemyState
+    public EnemyState EnemyState
     {
         get => enemyState;
         set
@@ -198,6 +199,12 @@ public class EnemyAI : MonoBehaviour
                 yield return null;
             }
 
+            if (wasEnemyHit)
+            {
+                yield return FaceTargetWhenHit();
+                wasEnemyHit = false;
+            }
+
             if (isVisible)
             {
                 navMeshAgent.SetDestination(target.transform.position);
@@ -255,6 +262,22 @@ public class EnemyAI : MonoBehaviour
         }
         
         return false;
+    }
+
+    private IEnumerator FaceTargetWhenHit()
+    {
+        Quaternion lookRotation;
+
+        do
+        {
+            var direction = (playerRaycastPivot.position - enemyRaycastPivot.position).normalized;
+            
+            lookRotation = Quaternion.LookRotation(new Vector3(direction.x, 0f, direction.z));
+            transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, turnSpeed * Time.deltaTime);
+
+            yield return null;
+        } 
+        while (Quaternion.Angle(transform.rotation, lookRotation) > 45f);
     }
     
     private void FaceTarget()

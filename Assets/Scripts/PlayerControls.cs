@@ -73,6 +73,14 @@ public class PlayerControls : MonoBehaviour
         transform.Rotate(0f, rotateAround, 0f);
     }
 
+    private void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        if (!hit.transform.TryGetComponent<EnemyAI>(out var enemy)) return;
+
+        enemy.wasEnemyHit = true;
+        enemy.EnemyState = EnemyState.Hostility;
+    }
+
     private void UpdateMovementAnimations()
     {
         var localVelocity = transform.InverseTransformDirection(controller.velocity);

@@ -45,7 +45,7 @@ GameObject:
   - component: {fileID: 911603654}
   m_Layer: 0
   m_Name: Enemy
-  m_TagString: Enemy
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -149,6 +149,7 @@ MonoBehaviour:
   turnSpeed: 7.5
   wanderCheckpointsAmount: 3
   wanderCheckpointStep: 1.5
+  wasEnemyHit: 0
 --- !u!1001 &7546807469428154129
 PrefabInstance:
   m_ObjectHideFlags: 0
