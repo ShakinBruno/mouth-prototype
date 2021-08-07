@@ -4,7 +4,7 @@ using UnityEngine;
 public class PatrolPath : MonoBehaviour
 {
     [Header("Enemy's Route")]
-    public List<Transform> waypoints = new List<Transform>();
+    [SerializeField] private List<Transform> waypoints = new List<Transform>();
 
     [Header("Values"), Min(0)] 
     [SerializeField] private float waypointGizmoRadius = 0.3f;

@@ -28,11 +28,12 @@ public class EnemyAI : MonoBehaviour
     [SerializeField, Range(1, 5)] private int wanderCheckpointsAmount = 1;
     [SerializeField, Range(1, 2)] private float wanderCheckpointStep = 1f;
     
+    [HideInInspector] public bool wasEnemyHit;
+    
     private static readonly int Speed = Animator.StringToHash("Speed");
     private bool isInHostileRange;
     private bool isInSuspicionRange;
     private bool isVisible;
-    public bool wasEnemyHit;
 
     private NavMeshAgent navMeshAgent;
     private Animator animator;
@@ -69,7 +70,6 @@ public class EnemyAI : MonoBehaviour
     private void Start()
     {
         EnemyState = EnemyState.Patrol;
-        navMeshAgent.speed = normalSpeed;
     }
 
     private void Update()
@@ -131,7 +131,7 @@ public class EnemyAI : MonoBehaviour
 
     private IEnumerator PatrolBehaviour()
     {
-        var patrolWaypointIndex = Random.Range(0, patrolPath.waypoints.Count);
+        var patrolWaypointIndex = patrolPath.GetNextIndex(-1);
         var nextDestination = GetPatrolWaypoint(patrolWaypointIndex);
         
         navMeshAgent.speed = normalSpeed;
@@ -212,13 +212,26 @@ public class EnemyAI : MonoBehaviour
             }
             else if (navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
             {
-                yield return new WaitForSeconds(waypointWaitTime);
-                
-                EnemyState = EnemyState.Suspicion;
+                yield return CheckForPlayerWhenLost(waypointWaitTime);
             }
             
             yield return null;
         }
+    }
+
+    private IEnumerator CheckForPlayerWhenLost(float timer)
+    {
+        for (var i = 0f; i <= timer; i += Time.deltaTime)
+        {
+            if (isVisible)
+            {
+                yield break;
+            }
+
+            yield return null;
+        }
+        
+        EnemyState = EnemyState.Suspicion;
     }
 
     private Vector3 RandomWanderPos()
