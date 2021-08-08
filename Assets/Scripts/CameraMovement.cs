@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class CameraMovement : MonoBehaviour
 {
-    [Header("Values")]
+    [Header("Values"), Min(0)]
     [SerializeField] private float mouseSensitivity = 100f;
 
     private float xRotation;

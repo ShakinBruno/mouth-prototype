@@ -14,7 +14,7 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private Transform playerRaycastPivot;
     [SerializeField] private Transform enemyRaycastPivot;
 
-    [Header("Layer Mask")] 
+    [Header("Player Mask")] 
     [SerializeField] private LayerMask playerMask;
     
     [Header("Values"), Min(0)] 

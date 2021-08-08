@@ -1,20 +1,33 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class PlayerActions : MonoBehaviour
 {
-    [SerializeField] private Color highlightColor;
-    [SerializeField] private float interactionDistance;
+    [Header("References")]
+    [SerializeField] private Image trigger;
+    
+    [Header("Highlight Colors")]
+    [SerializeField] private Color doorHighlightColor;
+    
+    [Header("Interaction Mask")]
     [SerializeField] private LayerMask interactionMask;
-
+    
+    [Header("Values"), Min(0)]
+    [SerializeField] private float interactionDistance;
+    
     private Color originalColor;
-    private GameObject lastHighlightedObject;
+
+    private void Start()
+    {
+        originalColor = trigger.color;
+    }
 
     private void Update()
     {
-        Highlight();
+        IsObjectInteractable();
     }
 
-    private void Highlight()
+    private void IsObjectInteractable()
     {
         if (Camera.main is null) return;
         
@@ -23,8 +36,7 @@ public class PlayerActions : MonoBehaviour
 
         if (Physics.Raycast(cameraTransform.position, forward, out var hit, interactionDistance, interactionMask, QueryTriggerInteraction.Ignore))
         {
-            HighlightObject(hit.collider.gameObject);
-            Interaction(hit);
+            ObjectInteraction(hit);
         }
         else
         {
@@ -32,50 +44,39 @@ public class PlayerActions : MonoBehaviour
         }
     }
 
-    private void Interaction(RaycastHit hit)
+    private void ObjectInteraction(RaycastHit hit)
     {
-        if (!Input.GetMouseButtonDown(0)) return;
-
         switch (hit.collider.tag)
         {
             case "Door":
-                MoveDoor(hit);
+            {
+                InteractWithDoor(hit);
+            } 
                 break;
         }
     }
 
-    private void MoveDoor(RaycastHit hit)
+    private void InteractWithDoor(RaycastHit hit)
     {
+        HighlightTrigger(doorHighlightColor);
+        
+        if (!Input.GetMouseButton(0)) return;
+        
         var door = hit.transform.GetComponentInParent<DoorInteraction>();
         
         if(door != null)
         {
-            door.ONInteractionChange?.Invoke(door.isOpened);
+            door.PlayerDoorInteraction(hit.transform.position);
         }
     }
 
-    private void HighlightObject(GameObject hitObject)
+    private void HighlightTrigger(Color highlightColor)
     {
-        if (lastHighlightedObject == hitObject) return;
-        
-        ClearHighlighted();
-
-        if (hitObject.TryGetComponent<MeshRenderer>(out var meshRenderer))
-        {
-            var material = meshRenderer.material;
-
-            originalColor = material.color;
-            material.color = highlightColor;
-            lastHighlightedObject = hitObject;
-        }
+        trigger.color = highlightColor;
     }
 
     private void ClearHighlighted()
     {
-        if (lastHighlightedObject != null && lastHighlightedObject.TryGetComponent<MeshRenderer>(out var meshRenderer))
-        {
-            meshRenderer.material.color = originalColor;
-            lastHighlightedObject = null;
-        }
+        trigger.color = originalColor;
     }
 }

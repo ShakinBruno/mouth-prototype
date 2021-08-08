@@ -5,7 +5,7 @@ public class PlayerControls : MonoBehaviour
     [Header("References")]
     [SerializeField] private Transform groundChecker;
 
-    [Header("LayerMask")] 
+    [Header("Ground Mask")] 
     [SerializeField] private LayerMask groundMask;
 
     [Header("Values"), Min(0)] 
