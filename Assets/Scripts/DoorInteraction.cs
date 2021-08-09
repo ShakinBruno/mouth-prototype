@@ -16,6 +16,9 @@ public class DoorInteraction : MonoBehaviour
     [SerializeField] private float playerSlideForce = 5f;
     
     [HideInInspector] public bool isOpened;
+
+    private float minDoorSlideValue;
+    private float maxDoorSlideValue;
     
     private Vector3 startPosition;
     private Vector3 finishPosition;
@@ -47,28 +50,19 @@ public class DoorInteraction : MonoBehaviour
                 finishPosition = doorBody.localPosition - new Vector3(doorSlideRange, 0f, 0f);
                 break;
         }
+        
+        minDoorSlideValue = Mathf.Min(startPosition.x, finishPosition.x);
+        maxDoorSlideValue = Mathf.Max(startPosition.x, finishPosition.x);
     }
-
-    private void Update()
+    
+    public void PlayerDoorInteraction(float direction)
     {
-        LimitDoorRange();
-    }
-
-    private void LimitDoorRange()
-    {
-        var currentPosition = doorBody.localPosition;
-        var minValue = Mathf.Min(startPosition.x, finishPosition.x);
-        var maxValue = Mathf.Max(startPosition.x, finishPosition.x);
-        var clampedXValue = Mathf.Clamp(currentPosition.x, minValue, maxValue);
-        var newPosition = new Vector3(clampedXValue, currentPosition.y, currentPosition.z);
-
-        doorBody.localPosition = newPosition;
-    }
-
-    public void PlayerDoorInteraction(Vector3 hitPosition)
-    {
-        hitPosition = new Vector3(hitPosition.x - Input.GetAxis("Mouse X") * Time.deltaTime * playerSlideForce, hitPosition.y, hitPosition.z);
-        doorBody.position = hitPosition;
+        var doorPosition = doorBody.localPosition;
+        var slideDistance = playerSlideForce * direction * Input.GetAxis("Mouse X") * Time.deltaTime;
+        var positionAfterSlide = new Vector3(doorPosition.x - slideDistance, doorPosition.y, doorPosition.z);
+        
+        positionAfterSlide.x = Mathf.Clamp(positionAfterSlide.x, minDoorSlideValue, maxDoorSlideValue);
+        doorBody.localPosition = positionAfterSlide;
     }
 
     private void HandleDoorStatusChange(bool isDoorOpened)

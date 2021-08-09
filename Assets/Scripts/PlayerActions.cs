@@ -32,11 +32,18 @@ public class PlayerActions : MonoBehaviour
         if (Camera.main is null) return;
         
         var cameraTransform = Camera.main.transform;
-        var forward = cameraTransform.TransformDirection(Vector3.forward);
+        var forward = cameraTransform.TransformDirection(Vector3.forward).normalized;
 
         if (Physics.Raycast(cameraTransform.position, forward, out var hit, interactionDistance, interactionMask, QueryTriggerInteraction.Ignore))
         {
-            ObjectInteraction(hit);
+            switch (hit.collider.tag)
+            {
+                case "Door":
+                {
+                    InteractWithDoor(hit, hit.normal.z);
+                } 
+                    break;
+            }
         }
         else
         {
@@ -44,29 +51,17 @@ public class PlayerActions : MonoBehaviour
         }
     }
 
-    private void ObjectInteraction(RaycastHit hit)
-    {
-        switch (hit.collider.tag)
-        {
-            case "Door":
-            {
-                InteractWithDoor(hit);
-            } 
-                break;
-        }
-    }
-
-    private void InteractWithDoor(RaycastHit hit)
+    private void InteractWithDoor(RaycastHit hit, float direction)
     {
         HighlightTrigger(doorHighlightColor);
         
-        if (!Input.GetMouseButton(0)) return;
+        if (Input.GetAxis("Fire1") == 0f) return;
         
         var door = hit.transform.GetComponentInParent<DoorInteraction>();
         
         if(door != null)
         {
-            door.PlayerDoorInteraction(hit.transform.position);
+            door.PlayerDoorInteraction(direction);
         }
     }
 

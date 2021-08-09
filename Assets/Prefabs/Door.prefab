@@ -174,5 +174,5 @@ MonoBehaviour:
   doorDirection: 0
   doorSlideRange: 2.5
   doorSlideSpeed: 3
-  playerSlideForce: 5
+  playerSlideForce: 3
   isOpened: 0
