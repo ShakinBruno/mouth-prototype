@@ -5,3 +5,11 @@
     Suspicion,
     Hostility
 }
+
+public enum PlayerState
+{
+    Default,
+    Walk,
+    Run,
+    Crouch,
+}

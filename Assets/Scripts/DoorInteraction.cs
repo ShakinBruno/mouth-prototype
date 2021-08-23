@@ -86,7 +86,7 @@ public class DoorInteraction : MonoBehaviour
     {
         while (doorBody.localPosition != finalPosition) 
         {
-            doorBody.localPosition = Vector3.MoveTowards(doorBody.localPosition, finalPosition, Time.deltaTime * doorSlideSpeed);
+            doorBody.localPosition = Vector3.MoveTowards(doorBody.localPosition, finalPosition, doorSlideSpeed * Time.deltaTime);
             yield return null;
         }
         

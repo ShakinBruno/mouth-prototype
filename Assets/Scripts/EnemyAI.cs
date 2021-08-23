@@ -39,7 +39,6 @@ public class EnemyAI : MonoBehaviour
     private Animator animator;
     private Coroutine activeCoroutine;
     private EnemyState enemyState;
-
     public EnemyState EnemyState
     {
         get => enemyState;
@@ -131,6 +130,8 @@ public class EnemyAI : MonoBehaviour
 
     private IEnumerator PatrolBehaviour()
     {
+        yield return new WaitUntil(() => EnemyState == EnemyState.Patrol);
+        
         var patrolWaypointIndex = patrolPath.GetNextIndex(-1);
         var nextDestination = GetPatrolWaypoint(patrolWaypointIndex);
         
@@ -139,11 +140,8 @@ public class EnemyAI : MonoBehaviour
 
         while (enabled)
         {
-            if (navMeshAgent.pathPending)
-            {
-                yield return null;
-            }
-            
+            yield return new WaitWhile(() => navMeshAgent.pathPending);
+
             if (navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
             {
                 patrolWaypointIndex = patrolPath.GetNextIndex(patrolWaypointIndex);
@@ -160,6 +158,8 @@ public class EnemyAI : MonoBehaviour
 
     private IEnumerator WanderBehaviour(int waypointsAmount)
     {
+        yield return new WaitUntil(() => EnemyState == EnemyState.Suspicion);
+        
         var wanderWaypointIndex = 1;
         
         navMeshAgent.speed = normalSpeed;
@@ -167,10 +167,7 @@ public class EnemyAI : MonoBehaviour
 
         while(wanderWaypointIndex <= waypointsAmount)
         {
-            if (navMeshAgent.pathPending)
-            {
-                yield return null;
-            }
+            yield return new WaitWhile(() => navMeshAgent.pathPending);
             
             if (navMeshAgent.remainingDistance <= navMeshAgent.stoppingDistance)
             {
@@ -189,15 +186,14 @@ public class EnemyAI : MonoBehaviour
     
     private IEnumerator HostileBehaviour()
     {
+        yield return new WaitUntil(() => EnemyState == EnemyState.Hostility);
+        
         navMeshAgent.speed = chasingSpeed;
         navMeshAgent.SetDestination(target.transform.position);
         
         while (enabled)
         {
-            if (navMeshAgent.pathPending)
-            {
-                yield return null;
-            }
+            yield return new WaitWhile(() => navMeshAgent.pathPending);
 
             if (wasEnemyHit)
             {

@@ -151,7 +151,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 915502996508297718}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -1, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 224979630283454583}
@@ -245,14 +245,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   groundChecker: {fileID: 871567524031814905}
+  playerRaycastPivot: {fileID: 1580888778}
+  controllerRadius: 0.4
+  controllerHeight: 1.2
+  cameraPosition: {x: 0, y: 1, z: 0.25}
+  raycastPivotPosition: {x: 0, y: 1, z: 0}
+  controllerCenter: {x: 0, y: 0.65, z: 0}
   groundMask:
     serializedVersion: 2
     m_Bits: 8
   walkSpeed: 3
   runSpeed: 5
+  crouchSpeed: 1.5
   rotateSpeed: 200
-  fromWalkToRunMultiplier: 5
-  gravityMultiplier: 2
+  speedTransition: 5
+  cameraAndCollidersTransition: 2.5
 --- !u!114 &2414855880493658728
 MonoBehaviour:
   m_ObjectHideFlags: 0
