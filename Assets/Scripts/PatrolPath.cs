@@ -12,11 +12,13 @@ public class PatrolPath : MonoBehaviour
     public int GetNextIndex(int previousWaypointIndex)
     {
         int randomIndex;
+        
         do
         {
             randomIndex = Random.Range(0, waypoints.Count);
         } 
         while (randomIndex == previousWaypointIndex);
+        
         return randomIndex;
     }
 
@@ -28,6 +30,7 @@ public class PatrolPath : MonoBehaviour
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.black;
+        
         foreach (var waypoint in waypoints)
         { 
             Gizmos.DrawSphere(waypoint.position, waypointGizmoRadius);

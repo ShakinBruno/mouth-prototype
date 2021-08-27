@@ -27,48 +27,53 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private float turnSpeed = 5f;
     [SerializeField, Range(1, 5)] private int wanderCheckpointsAmount = 1;
     [SerializeField, Range(1, 2)] private float wanderCheckpointStep = 1f;
-    
-    [HideInInspector] public bool wasEnemyHit;
-    
+
     private static readonly int Speed = Animator.StringToHash("Speed");
     private bool isInHostileRange;
     private bool isInSuspicionRange;
     private bool isVisible;
+    private bool wasEnemyHit;
 
     private NavMeshAgent navMeshAgent;
     private Animator animator;
     private Coroutine activeCoroutine;
     private EnemyState enemyState;
-    public EnemyState EnemyState
+    private EnemyState EnemyState
     {
         get => enemyState;
         set
         {
-            onStateChange?.Invoke(enemyState, value);
+            ONStateChange?.Invoke(enemyState, value);
             enemyState = value;
         }
     }
 
     private delegate void StateChangeEvent(EnemyState previousState,EnemyState newState);
-    private StateChangeEvent onStateChange;
+    private event StateChangeEvent ONStateChange;
 
     private void Awake()
     {
         animator = GetComponent<Animator>();
         navMeshAgent = GetComponent<NavMeshAgent>();
-
-        onStateChange += HandleStateChange;
-        enemyState = EnemyState.Default;
         
-        if (wanderRange < navMeshAgent.stoppingDistance * wanderCheckpointStep)
-        {
-            wanderRange = navMeshAgent.stoppingDistance * wanderCheckpointStep;
-        }
+        enemyState = EnemyState.Default;
+    }
+
+    private void OnEnable()
+    {
+        ONStateChange += HandleStateChange;
+    }
+
+    private void OnDisable()
+    {
+        ONStateChange -= HandleStateChange;
     }
 
     private void Start()
     {
         EnemyState = EnemyState.Patrol;
+
+        wanderRange = Mathf.Max(wanderRange, navMeshAgent.stoppingDistance * wanderCheckpointStep);
     }
 
     private void Update()
@@ -78,8 +83,8 @@ public class EnemyAI : MonoBehaviour
 
     private void FixedUpdate()
     {
-        isInHostileRange = IsTargetAccessibleCheck(hostileDetectionRange, playerMask);
-        isInSuspicionRange = IsTargetAccessibleCheck(suspicionDetectionRange, playerMask);
+        isInHostileRange = IsTargetAccessibleCheck(hostileDetectionRange);
+        isInSuspicionRange = IsTargetAccessibleCheck(suspicionDetectionRange);
         isVisible = IsTargetVisibleCheck();
 
         switch (EnemyState)
@@ -117,20 +122,20 @@ public class EnemyAI : MonoBehaviour
         switch (newState)
         {
             case EnemyState.Patrol:
-                activeCoroutine = StartCoroutine(PatrolBehaviour());
+                activeCoroutine = StartCoroutine(PatrolBehaviour(newState));
                 break;
             case EnemyState.Suspicion:
-                activeCoroutine = StartCoroutine(WanderBehaviour(wanderCheckpointsAmount));
+                activeCoroutine = StartCoroutine(WanderBehaviour(newState));
                 break;
             case EnemyState.Hostility:
-                activeCoroutine = StartCoroutine(HostileBehaviour());
+                activeCoroutine = StartCoroutine(HostileBehaviour(newState));
                 break;
         }
     }
 
-    private IEnumerator PatrolBehaviour()
+    private IEnumerator PatrolBehaviour(EnemyState state)
     {
-        yield return new WaitUntil(() => EnemyState == EnemyState.Patrol);
+        yield return new WaitUntil(() => EnemyState == state);
         
         var patrolWaypointIndex = patrolPath.GetNextIndex(-1);
         var nextDestination = GetPatrolWaypoint(patrolWaypointIndex);
@@ -156,16 +161,16 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    private IEnumerator WanderBehaviour(int waypointsAmount)
+    private IEnumerator WanderBehaviour(EnemyState state)
     {
-        yield return new WaitUntil(() => EnemyState == EnemyState.Suspicion);
+        yield return new WaitUntil(() => EnemyState == state);
         
         var wanderWaypointIndex = 1;
         
         navMeshAgent.speed = normalSpeed;
         navMeshAgent.SetDestination(RandomWanderPos());
 
-        while(wanderWaypointIndex <= waypointsAmount)
+        while(wanderWaypointIndex <= wanderCheckpointsAmount)
         {
             yield return new WaitWhile(() => navMeshAgent.pathPending);
             
@@ -184,9 +189,9 @@ public class EnemyAI : MonoBehaviour
         EnemyState = EnemyState.Patrol;
     }
     
-    private IEnumerator HostileBehaviour()
+    private IEnumerator HostileBehaviour(EnemyState state)
     {
-        yield return new WaitUntil(() => EnemyState == EnemyState.Hostility);
+        yield return new WaitUntil(() => EnemyState == state);
         
         navMeshAgent.speed = chasingSpeed;
         navMeshAgent.SetDestination(target.transform.position);
@@ -252,10 +257,10 @@ public class EnemyAI : MonoBehaviour
         return patrolPath.GetRandomWaypoint(index);
     }
     
-    private bool IsTargetAccessibleCheck(float range, int mask)
+    private bool IsTargetAccessibleCheck(float range)
     {
         var resultCollider = new Collider[1];
-        var hitCollider = Physics.OverlapSphereNonAlloc(transform.position, range, resultCollider, mask);
+        var hitCollider = Physics.OverlapSphereNonAlloc(transform.position, range, resultCollider, playerMask);
 
         return hitCollider > 0;
     }
@@ -303,6 +308,17 @@ public class EnemyAI : MonoBehaviour
         var speed = localVelocity.z;
         
         animator.SetFloat(Speed, speed);
+    }
+
+    public void ChaseWhenHit()
+    {
+        wasEnemyHit = true;
+        EnemyState = EnemyState.Hostility;
+    }
+
+    public EnemyState GetEnemyState()
+    {
+        return EnemyState;
     }
     
     private void OnDrawGizmosSelected()

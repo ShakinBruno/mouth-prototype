@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 963194227}
   - component: {fileID: 963194226}
   - component: {fileID: 963194229}
+  - component: {fileID: 7954696942834362728}
   m_Layer: 6
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -97,6 +98,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mouseSensitivity: 150
+--- !u!114 &7954696942834362728
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 963194225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57c773cf6935f844dbc04be15c48c67a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  player: {fileID: 2092762531}
+  cameraPosOnCrouch: 1
+  bobbingSpeed: 0.05
+  bobbingAmount: 3
 --- !u!1 &1580888777
 GameObject:
   m_ObjectHideFlags: 0
@@ -246,20 +263,24 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   groundChecker: {fileID: 871567524031814905}
   playerRaycastPivot: {fileID: 1580888778}
+  playerMovementMappings:
+  - state: 0
+    speed: 1
+  - state: 1
+    speed: 3
+  - state: 2
+    speed: 5
+  - state: 3
+    speed: 1.5
   controllerRadius: 0.4
   controllerHeight: 1.2
-  cameraPosition: {x: 0, y: 1, z: 0.25}
   raycastPivotPosition: {x: 0, y: 1, z: 0}
   controllerCenter: {x: 0, y: 0.65, z: 0}
   groundMask:
     serializedVersion: 2
     m_Bits: 8
-  walkSpeed: 3
-  runSpeed: 5
-  crouchSpeed: 1.5
   rotateSpeed: 200
-  speedTransition: 5
-  cameraAndCollidersTransition: 2.5
+  movementParametersTransition: 3
 --- !u!114 &2414855880493658728
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -273,7 +294,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   trigger: {fileID: 0}
-  doorHighlightColor: {r: 0.4811321, g: 0.4811321, b: 0.4811321, a: 1}
+  triggerMappings:
+  - type: 0
+    color: {r: 1, g: 1, b: 1, a: 0.5019608}
+  - type: 1
+    color: {r: 1, g: 0, b: 0, a: 0.5019608}
   interactionMask:
     serializedVersion: 2
     m_Bits: 128

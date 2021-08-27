@@ -166,7 +166,6 @@ MonoBehaviour:
   turnSpeed: 7.5
   wanderCheckpointsAmount: 3
   wanderCheckpointStep: 1.5
-  wasEnemyHit: 0
 --- !u!1001 &7546807469428154129
 PrefabInstance:
   m_ObjectHideFlags: 0

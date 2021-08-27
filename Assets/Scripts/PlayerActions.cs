@@ -1,77 +1,78 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class PlayerActions : MonoBehaviour
 {
-    [Header("References")]
+    [Header("References")] 
     [SerializeField] private Image trigger;
-    
-    [Header("Highlight Colors")]
-    [SerializeField] private Color doorHighlightColor;
-    
-    [Header("Interaction Mask")]
-    [SerializeField] private LayerMask interactionMask;
-    
-    [Header("Values"), Min(0)]
-    [SerializeField] private float interactionDistance;
-    
-    private Color originalColor;
 
-    private void Start()
+    [Header("Mappings")] 
+    [SerializeField] private TriggerMapping[] triggerMappings;
+    
+    [Header("Interaction Mask")] 
+    [SerializeField] private LayerMask interactionMask;
+
+    [Header("Values"), Min(0)] 
+    [SerializeField] private float interactionDistance;
+
+    private RaycastHit hit;
+
+    [Serializable] private struct TriggerMapping
     {
-        originalColor = trigger.color;
+        public TriggerType type;
+        public Color color;
     }
 
     private void Update()
     {
-        IsObjectInteractable();
+        InteractWithComponent();
     }
 
-    private void IsObjectInteractable()
+    private void InteractWithComponent()
     {
         if (Camera.main is null) return;
-        
+
         var cameraTransform = Camera.main.transform;
         var forward = cameraTransform.TransformDirection(Vector3.forward).normalized;
 
-        if (Physics.Raycast(cameraTransform.position, forward, out var hit, interactionDistance, interactionMask, QueryTriggerInteraction.Ignore))
+        if (Physics.Raycast(cameraTransform.position, forward, out hit, interactionDistance, interactionMask, QueryTriggerInteraction.Ignore))
         {
-            switch (hit.collider.tag)
-            {
-                case "Door":
-                {
-                    InteractWithDoor(hit, hit.normal.z);
-                } 
-                    break;
-            }
+            var interactable = hit.transform.GetComponent<IInteractable>();
+            
+            if(interactable == null) return;
+            
+            SetTrigger(interactable.GetTriggerType());
+            interactable.HandleInteraction(this);
         }
         else
         {
-            ClearHighlighted();
+            SetTrigger(TriggerType.Default);
         }
     }
 
-    private void InteractWithDoor(RaycastHit hit, float direction)
+    private void SetTrigger(TriggerType type)
     {
-        HighlightTrigger(doorHighlightColor);
+        var mapping = GetTriggerMapping(type);
         
-        if (Input.GetAxis("Fire1") == 0f) return;
-        
-        var door = hit.transform.GetComponentInParent<DoorInteraction>();
-        
-        if(door != null)
+        trigger.color = mapping.color;
+    }
+
+    private TriggerMapping GetTriggerMapping(TriggerType type)
+    {
+        foreach (var mapping in triggerMappings)
         {
-            door.PlayerDoorInteraction(direction);
+            if (mapping.type == type)
+            {
+                return mapping;
+            }
         }
+
+        return triggerMappings[0];
     }
 
-    private void HighlightTrigger(Color highlightColor)
+    public RaycastHit GetHit()
     {
-        trigger.color = highlightColor;
-    }
-
-    private void ClearHighlighted()
-    {
-        trigger.color = originalColor;
+        return hit;
     }
 }
