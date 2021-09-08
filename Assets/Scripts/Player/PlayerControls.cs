@@ -11,17 +11,16 @@ namespace Mouth.Player
     {
         [Header("References")]
         [SerializeField] private Transform groundChecker;
-        [SerializeField] private Transform playerRaycastPivot;
+        [SerializeField] private Transform raycastTarget;
+        [SerializeField] private Camera mainCamera;
 
+        [Header("State Change Values")] 
+        [SerializeField] private CrouchParameters onStand;
+        [SerializeField] private CrouchParameters onCrouch;
+        
         [Header("Mappings")] 
-        [SerializeField] private PlayerMovementMapping[] playerMovementMappings;
-    
-        [Header("Placement On Crouch"), Min(0)] 
-        [SerializeField] private float controllerRadius;
-        [SerializeField] private float controllerHeight;
-        [SerializeField] private Vector3 raycastPivotPosition;
-        [SerializeField] private Vector3 controllerCenter;
-
+        [SerializeField] private MovementMapping[] movementMappings;
+        
         [Header("Ground Mask")] 
         [SerializeField] private LayerMask groundMask;
 
@@ -31,41 +30,47 @@ namespace Mouth.Player
         [SerializeField] private float speedTransition = 7f;
         [SerializeField] private float pushPower = 2f;
 
-        [Serializable] private struct PlayerMovementMapping
+        [Serializable] private struct CrouchParameters
+        {
+            public float radius;
+            public float height;
+            public Vector3 raycastTargetPosition;
+            public Vector3 cameraPosition;
+            public Vector3 center;
+            public bool toCrouch;
+        }
+        
+        [Serializable] private struct MovementMapping
         {
             public PlayerState state;
             public float speed;
         }
-    
+        
         private static readonly int Speed = Animator.StringToHash("Speed");
         private static readonly int IsCrouching = Animator.StringToHash("IsCrouching");
-        private float radiusOnStart;
-        private float heightOnStart;
         private float gravity;
         private float moveSpeed;
         private float targetSpeed;
+        private float middlePoint;
         private bool isGrounded;
         private bool isCrouching;
 
         private CharacterController controller;
         private Animator animator;
         private Coroutine activeCoroutine;
-        private Vector3 raycastPivotOnStart;
-        private Vector3 centerOnStart;
         private PlayerState oldState;
         private PlayerState newState
         {
             get => oldState;
             set
             {
-                ONStateChange?.Invoke(oldState, value);
+                OnStateChange?.Invoke(oldState, value);
                 oldState = value;
             }
         }
 
         private delegate void StateChangeEvent(PlayerState previousState,PlayerState newState);
-        private event StateChangeEvent ONStateChange;
-    
+        private event StateChangeEvent OnStateChange;
 
         private void Awake()
         {
@@ -77,21 +82,17 @@ namespace Mouth.Player
 
         private void OnEnable()
         {
-            ONStateChange += HandleStateChange;
+            OnStateChange += HandleStateChange;
         }
 
         private void OnDisable()
         {
-            ONStateChange -= HandleStateChange;
+            OnStateChange -= HandleStateChange;
         }
 
         private void Start()
         {
-            raycastPivotOnStart = playerRaycastPivot.transform.localPosition;
-            centerOnStart = controller.center;
-            radiusOnStart = controller.radius;
-            heightOnStart = controller.height;
-        
+            middlePoint = mainCamera.transform.localPosition.y;
             newState = PlayerState.Walk;
         }
 
@@ -114,51 +115,51 @@ namespace Mouth.Player
                 StopCoroutine(activeCoroutine);
             }
 
-            switch (nextState)
+            if (nextState == PlayerState.Walk || nextState == PlayerState.Run)
             {
-                case PlayerState.Walk:
-                case PlayerState.Run:
-                    activeCoroutine = StartCoroutine(MovementBehaviour(nextState, raycastPivotOnStart, centerOnStart,
-                        radiusOnStart, heightOnStart, false));
-                    break;
-                case PlayerState.Crouch:
-                    activeCoroutine = StartCoroutine(MovementBehaviour(nextState, raycastPivotPosition, controllerCenter,
-                        controllerRadius, controllerHeight, true));
-                    break;
+                activeCoroutine = StartCoroutine(MovementBehaviour(nextState, onStand));
+            }
+            else if (nextState == PlayerState.Crouch)
+            {
+                activeCoroutine = StartCoroutine(MovementBehaviour(nextState, onCrouch));
             }
         }
 
-        private IEnumerator MovementBehaviour(PlayerState state, Vector3 raycastPivotPos, Vector3 centerPos, float radius, float height, bool toCrouch)
+        private IEnumerator MovementBehaviour(PlayerState state, CrouchParameters onState)
         {
             yield return new WaitUntil(() => newState == state);
         
             targetSpeed = GetMovementMapping(state).speed;
-            animator.SetBool(IsCrouching, toCrouch);
+            animator.SetBool(IsCrouching, onState.toCrouch);
 
-            yield return UpdateColliderPosition(raycastPivotPos, centerPos, radius, height);
+            yield return UpdateParamsPosition(onState);
         }
 
-        private IEnumerator UpdateColliderPosition(Vector3 raycastPivotPos, Vector3 centerPos, float radius, float height)
+        private IEnumerator UpdateParamsPosition(CrouchParameters onState)
         {
-            var hasReachedTarget = playerRaycastPivot.transform.localPosition == raycastPivotPos &&
-                                   controller.center == centerPos &&
-                                   Mathf.Approximately(controller.radius, radius) &&
-                                   Mathf.Approximately(controller.height, height);
+            var hasReachedTarget =
+                Mathf.Approximately(controller.radius, onState.radius) &&
+                Mathf.Approximately(controller.height, onState.height) &&
+                raycastTarget.localPosition == onState.raycastTargetPosition &&
+                mainCamera.transform.localPosition == onState.cameraPosition &&
+                controller.center == onState.center;
 
             while (!hasReachedTarget)
             {
-                var pivotPosition = playerRaycastPivot.transform.localPosition;
+                controller.radius = Mathf.MoveTowards(controller.radius, onState.radius, toCrouchTransition * Time.deltaTime);
+                controller.height = Mathf.MoveTowards(controller.height, onState.height, toCrouchTransition * Time.deltaTime);
+                raycastTarget.localPosition = Vector3.MoveTowards(raycastTarget.localPosition, onState.raycastTargetPosition, toCrouchTransition * Time.deltaTime);
+                mainCamera.transform.localPosition = Vector3.MoveTowards(mainCamera.transform.localPosition, onState.cameraPosition, toCrouchTransition * Time.deltaTime);
+                controller.center = Vector3.MoveTowards(controller.center, onState.center, toCrouchTransition * Time.deltaTime);
 
-                hasReachedTarget = pivotPosition == raycastPivotPos &&
-                                   controller.center == centerPos &&
-                                   Mathf.Approximately(controller.radius, radius) &&
-                                   Mathf.Approximately(controller.height, height);
-
-                playerRaycastPivot.transform.localPosition = Vector3.MoveTowards(pivotPosition, raycastPivotPos, toCrouchTransition * Time.deltaTime);
-                controller.center = Vector3.MoveTowards(controller.center, centerPos, toCrouchTransition * Time.deltaTime);
-                controller.radius = Mathf.MoveTowards(controller.radius, radius, toCrouchTransition * Time.deltaTime);
-                controller.height = Mathf.MoveTowards(controller.height, height, toCrouchTransition * Time.deltaTime);
-
+                middlePoint = mainCamera.transform.localPosition.y;
+                
+                hasReachedTarget = Mathf.Approximately(controller.radius, onState.radius) &&
+                                   Mathf.Approximately(controller.height, onState.height) &&
+                                   raycastTarget.localPosition == onState.raycastTargetPosition &&
+                                   mainCamera.transform.localPosition == onState.cameraPosition &&
+                                   controller.center == onState.center;
+                
                 yield return null;
             }
         }
@@ -210,9 +211,9 @@ namespace Mouth.Player
             transform.Rotate(0f, rotateAround, 0f);
         }
     
-        private PlayerMovementMapping GetMovementMapping(PlayerState state)
+        private MovementMapping GetMovementMapping(PlayerState state)
         {
-            foreach (var mapping in playerMovementMappings)
+            foreach (var mapping in movementMappings)
             {
                 if (mapping.state == state)
                 {
@@ -220,7 +221,7 @@ namespace Mouth.Player
                 }
             }
 
-            return playerMovementMappings[0];
+            return movementMappings[0];
         }
 
         private void OnControllerColliderHit(ControllerColliderHit hit)
@@ -242,19 +243,14 @@ namespace Mouth.Player
             animator.SetFloat(Speed, speed);
         }
 
-        public float GetMovementTransition()
-        {
-            return toCrouchTransition;
-        }
-
         public float GetTargetSpeed()
         {
             return moveSpeed;
         }
 
-        public bool GetIsCrouching()
+        public float GetMiddlePoint()
         {
-            return isCrouching;
+            return middlePoint;
         }
     }
 }

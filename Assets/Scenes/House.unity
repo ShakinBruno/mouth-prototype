@@ -280,7 +280,7 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2414855880493658728, guid: c7945cc4de3c8ec4e8a7212be723e9d3, type: 3}
-      propertyPath: trigger
+      propertyPath: cursor
       value: 
       objectReference: {fileID: 1827052602}
     - target: {fileID: 5686981811648305817, guid: c7945cc4de3c8ec4e8a7212be723e9d3, type: 3}
@@ -23159,7 +23159,7 @@ MonoBehaviour:
   doorDirection: 0
   doorSlideRange: 0.7
   doorSlideSpeed: 3
-  playerSlideForce: 2
+  playerSlideForce: 0.03
 --- !u!23 &3856861456839654513
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -36671,7 +36671,7 @@ MonoBehaviour:
   doorDirection: 0
   doorSlideRange: 1
   doorSlideSpeed: 3
-  playerSlideForce: 2
+  playerSlideForce: 0.03
 --- !u!23 &6371554151704716230
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -51874,7 +51874,7 @@ MonoBehaviour:
   doorDirection: 1
   doorSlideRange: 1
   doorSlideSpeed: 3
-  playerSlideForce: 2
+  playerSlideForce: 0.03
 --- !u!4 &8787571436328994398
 Transform:
   m_ObjectHideFlags: 0
@@ -53483,7 +53483,7 @@ MonoBehaviour:
   doorDirection: 1
   doorSlideRange: 1
   doorSlideSpeed: 3
-  playerSlideForce: 3
+  playerSlideForce: 0.03
 --- !u!1 &9091080851898597452
 GameObject:
   m_ObjectHideFlags: 0

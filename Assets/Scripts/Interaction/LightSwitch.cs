@@ -9,7 +9,7 @@ namespace Mouth.Interaction
         [SerializeField] private Light[] lights;
 
         private static readonly int IsActive = Animator.StringToHash("isActive");
-        private bool isLightActive = true;
+        private bool isEnabled = true;
 
         private delegate void SwitchChangeEvent(bool isActive);
         private event SwitchChangeEvent OnSwitchChange;
@@ -20,14 +20,14 @@ namespace Mouth.Interaction
             {
                 if (localLight.isActiveAndEnabled) continue;
                 
-                isLightActive = false;
+                isEnabled = false;
                 break;
             }
         }
 
         private void Start()
         {
-            OnSwitchChange?.Invoke(isLightActive);
+            OnSwitchChange?.Invoke(isEnabled);
         }
 
         private void OnEnable()
@@ -40,31 +40,31 @@ namespace Mouth.Interaction
             OnSwitchChange -= SwitchInteraction;
         }
 
-        private void SwitchInteraction(bool isActive)
+        private void SwitchInteraction(bool setActive)
         {
             if (TryGetComponent<Animator>(out var animator))
             {
-                animator.SetBool(IsActive, isActive);
+                animator.SetBool(IsActive, setActive);
             }
             
             foreach (var localLight in lights)
             {
-                localLight.enabled = isActive;
+                localLight.enabled = setActive;
             }
 
-            isLightActive = !isLightActive;
+            isEnabled = !setActive;
         }
 
-        public TriggerType GetTriggerType()
+        public CursorType GetCursorType()
         {
-            return TriggerType.LightSwitch;
+            return CursorType.LightSwitch;
         }
 
         public void HandleInteraction(Interaction interaction)
         {
             if (Input.GetMouseButtonDown(0))
             {
-                OnSwitchChange?.Invoke(isLightActive);
+                OnSwitchChange?.Invoke(isEnabled);
             }
         }
     }

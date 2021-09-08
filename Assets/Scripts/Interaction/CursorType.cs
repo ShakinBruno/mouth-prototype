@@ -1,10 +1,10 @@
 ﻿namespace Mouth.Interaction
 {
-    public enum TriggerType
+    public enum CursorType
     {
         Default,
         Door,
         DoorTeleport,
-        LightSwitch,
+        LightSwitch
     }
 }

@@ -7,7 +7,7 @@ namespace Mouth.Core
     {
         [Header("Values"), Min(0)]
         [SerializeField] private float cameraRange = 80f;
-        [SerializeField] private float mouseSensitivity = 100f;
+        [SerializeField] private float mouseSensitivity = 3f;
 
         private float xRotation;
         private float yRotation;
@@ -19,8 +19,8 @@ namespace Mouth.Core
 
         private void Update()
         {
-            var mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
-            var mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
+            var mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
+            var mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
 
             xRotation -= mouseY;
             yRotation += mouseX;

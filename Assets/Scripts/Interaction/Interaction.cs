@@ -9,20 +9,21 @@ namespace Mouth.Interaction
     {
         [Header("References")] 
         [SerializeField] private Camera mainCamera;
-        [SerializeField] private Image trigger;
+        [SerializeField] private Image cursor;
 
         [Header("Mappings")] 
-        [SerializeField] private TriggerMapping[] triggerMappings;
+        [SerializeField] private CursorMapping[] cursorMappings;
 
         [Header("Values"), Min(0)] 
         [SerializeField] private float interactionDistance;
 
         private RaycastHit hit;
 
-        [Serializable] private struct TriggerMapping
+        [Serializable] private struct CursorMapping
         {
-            public TriggerType type;
-            public Color color;
+            public CursorType type;
+            public Sprite cursor;
+            public Vector2 scale;
         }
 
         private void Update()
@@ -39,35 +40,37 @@ namespace Mouth.Interaction
             {
                 if (hit.transform.TryGetComponent<IInteractable>(out var interactable))
                 {
-                    SetTrigger(interactable.GetTriggerType());
+                    SetCursor(interactable.GetCursorType());
                     interactable.HandleInteraction(this);
                 }
                 else
                 {
-                    SetDefaultTrigger();
+                    SetDefaultCursor();
                 }
             }
             else
             {
-                SetDefaultTrigger();
+                SetDefaultCursor();
             }
         }
 
-        private void SetTrigger(TriggerType type)
+        private void SetCursor(CursorType type)
         {
-            var mapping = GetTriggerMapping(type);
+            var mapping = GetCursorMapping(type);
         
-            trigger.color = mapping.color;
+            cursor.sprite = mapping.cursor;
+            cursor.rectTransform.localScale = mapping.scale;
         }
 
-        private void SetDefaultTrigger()
+        private void SetDefaultCursor()
         {
-            trigger.color = triggerMappings[0].color;
+            cursor.sprite = cursorMappings[0].cursor;
+            cursor.rectTransform.localScale = cursorMappings[0].scale;
         }
 
-        private TriggerMapping GetTriggerMapping(TriggerType type)
+        private CursorMapping GetCursorMapping(CursorType type)
         {
-            foreach (var mapping in triggerMappings)
+            foreach (var mapping in cursorMappings)
             {
                 if (mapping.type == type)
                 {
@@ -75,7 +78,7 @@ namespace Mouth.Interaction
                 }
             }
 
-            return triggerMappings[0];
+            return cursorMappings[0];
         }
 
         public Vector3 GetHitNormal()

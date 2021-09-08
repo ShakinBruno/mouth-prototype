@@ -7,7 +7,7 @@ namespace Mouth.Interaction
     [RequireComponent(typeof(Collider))]
     public class DoorTeleport : MonoBehaviour, IInteractable
     {
-        [Header("Array Of Teleports")]
+        [Header("References")]
         [SerializeField] private Transform[] teleports;
         
         private CharacterController playerController;
@@ -51,9 +51,9 @@ namespace Mouth.Interaction
             return teleports[teleports.Length - 1];
         }
 
-        public TriggerType GetTriggerType()
+        public CursorType GetCursorType()
         {
-            return TriggerType.DoorTeleport;
+            return CursorType.DoorTeleport;
         }
 
         public void HandleInteraction(Interaction interaction)

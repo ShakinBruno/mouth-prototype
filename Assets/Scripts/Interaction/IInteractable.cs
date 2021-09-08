@@ -2,7 +2,7 @@ namespace Mouth.Interaction
 {
     public interface IInteractable
     {
-        TriggerType GetTriggerType();
+        CursorType GetCursorType();
         void HandleInteraction(Interaction interaction);
     }
 }

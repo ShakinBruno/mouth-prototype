@@ -62,7 +62,7 @@ namespace Mouth.Interaction
             while (!Input.GetMouseButtonUp(0))
             {
                 var doorPosition = transform.localPosition;
-                var slideDistance = playerSlideForce * normal * Input.GetAxis("Mouse X") * Time.deltaTime;
+                var slideDistance = playerSlideForce * normal * Input.GetAxis("Mouse X");
                 var positionAfterSlide = new Vector3(doorPosition.x - slideDistance, doorPosition.y, doorPosition.z);
         
                 positionAfterSlide.x = Mathf.Clamp(positionAfterSlide.x, minDoorSlideValue, maxDoorSlideValue);
@@ -103,9 +103,9 @@ namespace Mouth.Interaction
             OnInteractionChange?.Invoke(isDoorOpened);
         }
 
-        public TriggerType GetTriggerType()
+        public CursorType GetCursorType()
         {
-            return TriggerType.Door;
+            return CursorType.Door;
         }
 
         public void HandleInteraction(Interaction interaction)

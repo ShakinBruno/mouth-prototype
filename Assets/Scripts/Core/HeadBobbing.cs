@@ -6,33 +6,20 @@ namespace Mouth.Core
     [RequireComponent(typeof(Camera))]
     public class HeadBobbing : MonoBehaviour
     {
-        [Header("References")]
-        [SerializeField] private PlayerControls player;
-    
-        [Header("Camera Position On Crouch")]
-        [SerializeField] private float cameraCrouchYPos = 1f;
-    
         [Header("Values"), Min(0)]
         [SerializeField] private float bobbingSpeed = 0.18f;
         [SerializeField] private float bobbingAmplitude = 0.2f;
     
         private float timer;
-        private float cameraStartPos;
-        private float middlePoint;
 
-        private void Start()
+        private PlayerControls player;
+
+        private void Awake()
         {
-            cameraStartPos = transform.localPosition.y;
-            middlePoint = cameraStartPos;
+            player = GameObject.FindWithTag("Player").GetComponent<PlayerControls>();
         }
 
         private void Update () 
-        {
-            UpdateCameraOnCrouch();
-            HeadBob();
-        }
-
-        private void HeadBob()
         {
             var waveSlice = 0f;
             var verticalInput = Input.GetAxis("Vertical");
@@ -58,26 +45,14 @@ namespace Mouth.Core
                 var translateChange = waveSlice * bobbingAmplitude;
 
                 translateChange = Mathf.Abs(verticalInput) * translateChange;
-                currentPosition.y = middlePoint + translateChange;
+                currentPosition.y = player.GetMiddlePoint() + translateChange;
             }
             else
             {
-                currentPosition.y = middlePoint;
+                currentPosition.y = player.GetMiddlePoint();
             }
 
             transform.localPosition =  currentPosition;
-        }
-
-        private void UpdateCameraOnCrouch()
-        {
-            if (player.GetIsCrouching())
-            {
-                middlePoint = Mathf.MoveTowards(middlePoint, cameraCrouchYPos, player.GetMovementTransition() * Time.deltaTime);
-            }
-            else
-            {
-                middlePoint = Mathf.MoveTowards(middlePoint, cameraStartPos, player.GetMovementTransition() * Time.deltaTime);
-            }
         }
     }
 }

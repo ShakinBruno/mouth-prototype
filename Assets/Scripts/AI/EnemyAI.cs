@@ -9,12 +9,11 @@ namespace Mouth.AI
     public class EnemyAI : MonoBehaviour
     {
         [Header("References")]
-        [SerializeField] private CharacterController target;
         [SerializeField] private PatrolPath patrolPath;
     
-        [Header("Raycast Settings")] 
-        [SerializeField] private Transform playerRaycastPivot;
-        [SerializeField] private Transform enemyRaycastPivot;
+        [Header("Raycast References")]
+        [SerializeField] private Transform raycastOrigin;
+        [SerializeField] private Transform[] raycastTargets;
 
         [Header("Player Mask")] 
         [SerializeField] private LayerMask playerMask;
@@ -23,22 +22,26 @@ namespace Mouth.AI
         [SerializeField] private float hostileDetectionRange = 15f;
         [SerializeField] private float suspicionDetectionRange = 25f;
         [SerializeField] private float wanderRange = 7.5f;
+        [SerializeField] private float angleOfDetection = 70f;
+        [SerializeField] private float raycastUpdateRate = 0.2f;
         [SerializeField] private float waypointWaitTime = 3f;
         [SerializeField] private float normalSpeed = 3.5f;
         [SerializeField] private float chasingSpeed = 5f;
         [SerializeField] private float turnSpeed = 5f;
+        [SerializeField] private float raycastGizmoRadius = 0.05f;
         [SerializeField, Range(1, 5)] private int wanderCheckpointAmount = 1;
         [SerializeField, Range(1, 2)] private float wanderCheckpointStep = 1f;
 
         private static readonly int Speed = Animator.StringToHash("Speed");
-        private bool isInHostileRange;
-        private bool isInSuspicionRange;
-        private bool isVisible;
+        private int currentRaycastIndex;
         private bool wasEnemyHit;
 
+        private CharacterController target;
         private NavMeshAgent navMeshAgent;
         private Animator animator;
         private Coroutine activeCoroutine;
+        private Vector3 currentRaycastPos;
+        private Vector3 nextRaycastPos;
         private EnemyState oldState;
         private EnemyState newState
         {
@@ -55,10 +58,12 @@ namespace Mouth.AI
 
         private void Awake()
         {
+            target = GameObject.FindWithTag("Player").GetComponent<CharacterController>();
             animator = GetComponent<Animator>();
             navMeshAgent = GetComponent<NavMeshAgent>();
 
             oldState = EnemyState.Default;
+            wanderRange = Mathf.Max(wanderRange, navMeshAgent.stoppingDistance * wanderCheckpointStep);
         }
 
         private void OnEnable()
@@ -74,8 +79,8 @@ namespace Mouth.AI
         private void Start()
         {
             newState = EnemyState.Patrol;
-
-            wanderRange = Mathf.Max(wanderRange, navMeshAgent.stoppingDistance * wanderCheckpointStep);
+            currentRaycastPos = raycastTargets[currentRaycastIndex].position;
+            nextRaycastPos = raycastTargets[GetNextRaycastIndex(currentRaycastIndex)].position;
         }
 
         private void Update()
@@ -85,30 +90,65 @@ namespace Mouth.AI
 
         private void FixedUpdate()
         {
-            isInHostileRange = IsTargetAccessibleCheck(hostileDetectionRange);
-            isInSuspicionRange = IsTargetAccessibleCheck(suspicionDetectionRange);
-            isVisible = IsTargetVisibleCheck();
-
             switch (newState)
             {
                 case EnemyState.Patrol:
                 {
-                    if (isInHostileRange && isVisible)
-                    {
-                        newState = EnemyState.Hostility;
-                    }
-
+                    CheckForVisibility(hostileDetectionRange);
                     break;
                 }
                 case EnemyState.Suspicion:
                 {
-                    if (isInSuspicionRange && isVisible)
-                    {
-                        newState = EnemyState.Hostility;
-                    }
-
+                    CheckForVisibility(suspicionDetectionRange);
                     break;
                 }
+            }
+        }
+
+        private void CheckForVisibility(float range)
+        {
+            if (IsTargetInRange(range) && IsTargetInFrontOf() && IsTargetVisibleCheck())
+            {
+                newState = EnemyState.Hostility;
+            }
+        }
+        
+        private bool IsTargetInRange(float range)
+        {
+            var resultCollider = new Collider[1];
+            var hitCollider = Physics.OverlapSphereNonAlloc(transform.position, range, resultCollider, playerMask);
+
+            return hitCollider > 0;
+        }
+
+        private bool IsTargetInFrontOf()
+        {
+            var forward = transform.TransformDirection(Vector3.forward).normalized;
+            var direction = (target.transform.position - transform.position).normalized;
+
+            return Vector3.Angle(forward, direction) <= angleOfDetection;
+        }
+
+        private bool IsTargetVisibleCheck()
+        {
+            UpdateRaycastPosition();
+
+            var originPos = raycastOrigin.position;
+            var direction = (currentRaycastPos - originPos).normalized;
+            
+            return Physics.Raycast(originPos, direction, out var hit) && hit.collider.CompareTag("Player");
+        }
+
+        private void UpdateRaycastPosition()
+        {
+            if (currentRaycastPos == nextRaycastPos)
+            {
+                currentRaycastIndex = GetNextRaycastIndex(currentRaycastIndex);
+                nextRaycastPos = raycastTargets[GetNextRaycastIndex(currentRaycastIndex)].position;
+            }
+            else
+            {
+                currentRaycastPos = Vector3.MoveTowards(currentRaycastPos, nextRaycastPos, raycastUpdateRate);
             }
         }
 
@@ -121,17 +161,17 @@ namespace Mouth.AI
                 StopCoroutine(activeCoroutine);
             }
 
-            switch (nextState)
+            if (nextState == EnemyState.Patrol)
             {
-                case EnemyState.Patrol:
-                    activeCoroutine = StartCoroutine(PatrolBehaviour(nextState));
-                    break;
-                case EnemyState.Suspicion:
-                    activeCoroutine = StartCoroutine(WanderBehaviour(nextState));
-                    break;
-                case EnemyState.Hostility:
-                    activeCoroutine = StartCoroutine(HostileBehaviour(nextState));
-                    break;
+                activeCoroutine = StartCoroutine(PatrolBehaviour(nextState));
+            }
+            else if (nextState == EnemyState.Suspicion)
+            {
+                activeCoroutine = StartCoroutine(WanderBehaviour(nextState));
+            }
+            else if (nextState == EnemyState.Hostility)
+            {
+                activeCoroutine = StartCoroutine(HostileBehaviour(nextState));
             }
         }
 
@@ -208,7 +248,7 @@ namespace Mouth.AI
                     wasEnemyHit = false;
                 }
 
-                if (isVisible)
+                if (IsTargetVisibleCheck())
                 {
                     navMeshAgent.SetDestination(target.transform.position);
                     FaceTarget();
@@ -226,7 +266,7 @@ namespace Mouth.AI
         {
             for (var i = 0f; i <= timer; i += Time.deltaTime)
             {
-                if (isVisible)
+                if (IsTargetVisibleCheck())
                 {
                     yield break;
                 }
@@ -239,55 +279,40 @@ namespace Mouth.AI
 
         private Vector3 RandomWanderPos()
         {
-            Vector3 randomDirection;
-        
+            NavMeshHit navHit;
+            
             do
             {
-                randomDirection = Random.insideUnitSphere * wanderRange;
+                var randomDirection = Random.insideUnitSphere * wanderRange;
+                
                 randomDirection.y = Mathf.Clamp01(randomDirection.y);
                 randomDirection += transform.position;
+                
+                NavMesh.SamplePosition(randomDirection, out navHit, wanderRange, NavMesh.AllAreas);
             } 
-            while (Vector3.Distance(transform.position, randomDirection) < navMeshAgent.stoppingDistance * wanderCheckpointStep);
-
-            NavMesh.SamplePosition(randomDirection, out var navHit, wanderRange, NavMesh.AllAreas);
+            while (Vector3.Distance(transform.position, navHit.position) <= navMeshAgent.stoppingDistance * wanderCheckpointStep);
 
             return navHit.position;
+        }
+
+        private int GetNextRaycastIndex(int index)
+        {
+            return (index + 1) % raycastTargets.Length;
         }
     
         private Vector3 GetPatrolWaypoint(int index)
         {
             return patrolPath.GetRandomWaypoint(index);
         }
-    
-        private bool IsTargetAccessibleCheck(float range)
-        {
-            var resultCollider = new Collider[1];
-            var hitCollider = Physics.OverlapSphereNonAlloc(transform.position, range, resultCollider, playerMask);
-
-            return hitCollider > 0;
-        }
-
-        private bool IsTargetVisibleCheck()
-        {
-            var forward = transform.TransformDirection(Vector3.forward);
-            var direction = (playerRaycastPivot.position - enemyRaycastPivot.position).normalized;
-        
-            if (Vector3.Dot(forward, direction) >= 0f)
-            {
-                return Physics.Raycast(enemyRaycastPivot.position, direction, out var hit) && hit.collider.CompareTag("Player");
-            }
-        
-            return false;
-        }
 
         private IEnumerator FaceTargetWhenHit()
         {
-            var direction = (playerRaycastPivot.position - enemyRaycastPivot.position).normalized;
+            var direction = (target.transform.position - transform.position).normalized;
             var lookRotation = Quaternion.LookRotation(new Vector3(direction.x, 0f, direction.z));
 
             while (Quaternion.Angle(transform.rotation, lookRotation) > 45f)
             {
-                direction = (playerRaycastPivot.position - enemyRaycastPivot.position).normalized;
+                direction = (target.transform.position - transform.position).normalized;
                 lookRotation = Quaternion.LookRotation(new Vector3(direction.x, 0f, direction.z));
                 transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, turnSpeed * Time.deltaTime);
 
@@ -297,7 +322,7 @@ namespace Mouth.AI
 
         private void FaceTarget()
         {
-            var direction = (playerRaycastPivot.position - enemyRaycastPivot.position).normalized;
+            var direction = (target.transform.position - transform.position).normalized;
             var lookRotation = Quaternion.LookRotation(new Vector3(direction.x, 0f, direction.z));
         
             transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, turnSpeed * Time.deltaTime);
@@ -325,7 +350,6 @@ namespace Mouth.AI
         private void OnDrawGizmosSelected()
         {
             var enemy = transform.position;
-            var enemyPivot = enemyRaycastPivot.position;
 
             Gizmos.color = Color.red;
             Gizmos.DrawWireSphere(enemy, hostileDetectionRange);
@@ -333,8 +357,16 @@ namespace Mouth.AI
             Gizmos.DrawWireSphere(enemy, suspicionDetectionRange);
             Gizmos.color = Color.green;
             Gizmos.DrawWireSphere(enemy, wanderRange);
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawRay(enemyPivot, playerRaycastPivot.position - enemyPivot);
+
+            for (var i = 0; i < raycastTargets.Length; i++)
+            {
+                var j = GetNextRaycastIndex(i);
+                
+                Gizmos.color = Color.yellow;
+                Gizmos.DrawSphere(raycastTargets[i].position, raycastGizmoRadius);
+                Gizmos.color = Color.black;
+                Gizmos.DrawLine(raycastTargets[i].position, raycastTargets[j].position);
+            }
         }
     }
 }

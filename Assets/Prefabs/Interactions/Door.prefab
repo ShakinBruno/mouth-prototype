@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 3190089471110372268}
   - component: {fileID: 525206875751688320}
   - component: {fileID: 541185496}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: Door Body
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -128,7 +128,7 @@ MonoBehaviour:
   doorDirection: 0
   doorSlideRange: 2.5
   doorSlideSpeed: 3
-  playerSlideForce: 5
+  playerSlideForce: 0.03
 --- !u!1 &6921847909918595487
 GameObject:
   m_ObjectHideFlags: 0
