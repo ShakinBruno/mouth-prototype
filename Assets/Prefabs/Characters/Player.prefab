@@ -414,6 +414,9 @@ MonoBehaviour:
   - type: 3
     cursor: {fileID: 21300000, guid: aa268bdd2346c46408c07313a7ed8348, type: 3}
     scale: {x: 0.4, y: 0.4}
+  - type: 4
+    cursor: {fileID: 21300000, guid: 94668b7bee992e543b7102263492ff49, type: 3}
+    scale: {x: 0.4, y: 0.4}
   interactionDistance: 1.5
 --- !u!1 &7414753531846575117
 GameObject:

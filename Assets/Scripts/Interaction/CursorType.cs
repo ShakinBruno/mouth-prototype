@@ -5,6 +5,8 @@
         Default,
         Door,
         DoorTeleport,
-        LightSwitch
+        LightSwitch,
+        Fusebox,
+        TV
     }
 }
